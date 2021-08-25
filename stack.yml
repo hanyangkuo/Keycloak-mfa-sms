@@ -1,0 +1,59 @@
+version: '3.1'
+
+services:
+  mymariadb:
+    image: mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: keycloak
+      MYSQL_USER: keycloak
+      MYSQL_PASSWORD: password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--silent"]
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8180:8080
+      
+  pushgateway:
+    image: prom/pushgateway:latest
+    ports:
+      - 9091:9091
+  kc1:
+    image: keycloak:sms
+    environment:
+      DB_VENDOR: mariadb
+      DB_ADDR: mymariadb
+      DB_DATABASE: keycloak
+      DB_USER: keycloak
+      DB_PASSWORD: password
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin
+      PROMETHEUS_PUSHGATEWAY_ADDRESS: "pushgateway:9091"
+    restart: on-failure
+    ports:
+      - 8080:8080
+    depends_on:
+      - mymariadb
+      - pushgateway
+         
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - D:\Projects\OAuth2.0\keycloak-prometheus\promethous\prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - 9090:9090
+    depends_on:
+      - pushgateway
+
+  grafana:
+    image: grafana/grafana
+    depends_on:
+      - prometheus
+    ports:
+      - '3000:3000'
